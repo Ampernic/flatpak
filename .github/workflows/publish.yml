@@ -106,6 +106,12 @@ jobs:
           else
             mkdir public && git -C public init -q -b gh-pages
           fi
+          # The OSTree store shares the branch root with the static landing /
+          # .flatpakrepo files; flatpak-builder only auto-creates the repo when the
+          # directory is absent, so initialise it here when the branch has none yet.
+          if [ ! -f public/config ]; then
+            ostree init --repo=public --mode=archive-z2
+          fi
 
       - name: Build into the store
         run: |
