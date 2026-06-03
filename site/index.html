@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ampernic — Flatpak repository</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, sans-serif; max-width: 46rem; margin: 3rem auto;
+         padding: 0 1.25rem; line-height: 1.6; }
+  h1 { display: flex; align-items: center; gap: .6rem; font-size: 1.7rem; }
+  h1 img { width: 2.2rem; height: 2.2rem; }
+  code, pre { font-family: ui-monospace, monospace; }
+  pre { background: rgba(127,127,127,.14); padding: .9rem 1rem; border-radius: .5rem;
+        overflow-x: auto; }
+  a.btn { display: inline-block; margin: 1.2rem 0; text-decoration: none;
+          border: 1px solid #2da5e0; border-radius: .6rem; padding: .7rem 1.2rem;
+          color: inherit; }
+  a.btn:hover { background: rgba(45,165,224,.12); }
+  footer { margin-top: 2.5rem; opacity: .65; font-size: .85rem; }
+</style>
+</head>
+<body>
+  <h1><img src="icon.svg" alt=""> Ampernic — Flatpak repository</h1>
+  <p>Personal Flatpak repository. Add the remote once, then install any app from it.</p>
+
+  <a class="btn" href="ampernic.flatpakrepo">Add the Ampernic remote</a>
+
+  <h2>From the command line</h2>
+  <pre><code>flatpak remote-add --if-not-exists --user \
+  ampernic https://flatpak.ampernic.space/ampernic.flatpakrepo
+
+# see what's published
+flatpak remote-ls --user ampernic
+
+# install (stable is the default branch)
+flatpak install --user ampernic space.ampernic.AnotherTGProxy</code></pre>
+
+  <h2>Development builds</h2>
+  <p>Every app publishes a <code>stable</code> branch (from release tags) and a
+     <code>devel</code> branch (from <code>main</code>). Append <code>//devel</code>
+     to pick the development build:</p>
+  <pre><code>flatpak install --user ampernic space.ampernic.AnotherTGProxy//devel</code></pre>
+
+  <footer>
+    The repository is GPG-signed; the public key is embedded in
+    <a href="ampernic.flatpakrepo">ampernic.flatpakrepo</a>.
+    Source &amp; build pipeline:
+    <a href="https://github.com/Ampernic/flatpak">github.com/Ampernic/flatpak</a>.
+  </footer>
+</body>
+</html>

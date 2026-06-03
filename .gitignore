@@ -1,0 +1,4 @@
+public/
+manifest.yml
+build/
+.flatpak-builder/

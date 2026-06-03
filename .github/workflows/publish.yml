@@ -1,0 +1,142 @@
+name: Publish a Flatpak build
+
+# Generic, app-agnostic publisher. Apps push themselves here via repository_dispatch
+# (event_type: publish) carrying their own manifest; this repo only builds, signs and
+# serves. The accumulated OSTree repository lives on the gh-pages branch (one squashed
+# commit, full content) and is served by GitHub Pages at flatpak.ampernic.space.
+
+on:
+  repository_dispatch:
+    types: [publish]
+  workflow_dispatch:
+    inputs:
+      app_id:
+        description: App ID (e.g. space.ampernic.AnotherTGProxy)
+        required: true
+      channel:
+        description: Channel
+        required: true
+        type: choice
+        options: [stable, devel]
+        default: devel
+      manifest_url:
+        description: Raw URL to a self-contained Flatpak manifest
+        required: true
+      runtime_version:
+        description: GNOME runtime version the manifest needs
+        required: true
+        default: '49'
+
+permissions:
+  contents: write   # force-pushes the gh-pages OSTree store
+
+# Serialize publishes: they all mutate the single gh-pages store.
+concurrency:
+  group: flatpak-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (workflow + static site/remote sources)
+        uses: actions/checkout@v4
+
+      - name: Resolve inputs (dispatch or manual)
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = workflow_dispatch ]; then
+            APP_ID='${{ inputs.app_id }}'
+            CHANNEL='${{ inputs.channel }}'
+            RUNTIME='${{ inputs.runtime_version }}'
+            curl -fsSL '${{ inputs.manifest_url }}' -o manifest.yml
+          else
+            APP_ID='${{ github.event.client_payload.app_id }}'
+            CHANNEL='${{ github.event.client_payload.channel }}'
+            RUNTIME='${{ github.event.client_payload.runtime_version }}'
+            printf '%s' '${{ github.event.client_payload.manifest_b64 }}' \
+              | base64 -d > manifest.yml
+          fi
+          case "$CHANNEL" in stable|devel) ;; *) echo "bad channel: $CHANNEL"; exit 1 ;; esac
+          [ -n "$APP_ID" ] || { echo "missing app_id"; exit 1; }
+          [ -n "$RUNTIME" ] || RUNTIME='49'
+          echo "APP_ID=$APP_ID"   >> "$GITHUB_ENV"
+          echo "CHANNEL=$CHANNEL" >> "$GITHUB_ENV"
+          echo "RUNTIME=$RUNTIME" >> "$GITHUB_ENV"
+          echo "=== manifest ($APP_ID / $CHANNEL) ==="; cat manifest.yml
+
+      - name: Install flatpak + flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder ostree
+          flatpak remote-add --user --if-not-exists \
+            flathub https://flathub.org/repo/flathub.flatpakrepo
+
+      - name: Cache flatpak runtimes
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/flatpak
+          key: flatpak-gnome${{ env.RUNTIME }}-${{ runner.os }}
+
+      - name: Install GNOME runtime + SDK
+        run: |
+          flatpak install --user -y --noninteractive flathub \
+            org.gnome.Platform//${RUNTIME} org.gnome.Sdk//${RUNTIME}
+
+      - name: Import GPG signing key
+        env:
+          GPG_KEY: ${{ secrets.FLATPAK_GPG_PRIVATE_KEY }}
+        run: |
+          GNUPGHOME="$RUNNER_TEMP/gnupg"
+          mkdir -p "$GNUPGHOME"; chmod 700 "$GNUPGHOME"
+          printf '%s' "$GPG_KEY" | gpg --homedir "$GNUPGHOME" --batch --import
+          KEYID=$(gpg --homedir "$GNUPGHOME" --list-keys --with-colons \
+                  | awk -F: '/^fpr:/{print $10; exit}')
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+          echo "KEYID=$KEYID" >> "$GITHUB_ENV"
+
+      - name: Fetch existing OSTree store (gh-pages)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code "$URL" gh-pages >/dev/null 2>&1; then
+            git clone --branch gh-pages --single-branch --depth 1 "$URL" public
+          else
+            mkdir public && git -C public init -q -b gh-pages
+          fi
+
+      - name: Build into the store
+        run: |
+          set -euo pipefail
+          flatpak-builder --user --disable-rofiles-fuse --force-clean \
+            --repo=public --default-branch="$CHANNEL" \
+            --gpg-sign="$KEYID" --gpg-homedir="$GNUPGHOME" \
+            "$RUNNER_TEMP/build" manifest.yml
+
+      - name: Refresh metadata, deltas, signatures
+        run: |
+          flatpak build-update-repo \
+            --generate-static-deltas --prune --prune-depth=20 \
+            --gpg-sign="$KEYID" --gpg-homedir="$GNUPGHOME" public
+
+      - name: Overlay static site + remote descriptors
+        run: |
+          cp -a remote/. public/
+          cp -a site/. public/
+          touch public/.nojekyll
+
+      - name: Commit + publish (squashed orphan, keeps the branch small)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd public
+          git checkout -q --orphan publish
+          git add -A
+          git -c user.name='Ampernic' -c user.email='ampernic@inbox.ru' \
+            commit -q -m "publish ${APP_ID} [${CHANNEL}]"
+          git branch -M publish gh-pages
+          URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push -q --force "$URL" gh-pages
