@@ -112,6 +112,11 @@ jobs:
           if [ ! -f public/config ]; then
             ostree init --repo=public --mode=archive-z2
           fi
+          # git does not store empty directories, so a cloned archive-z2 store is
+          # missing ostree's empty skeleton dirs (refs/remotes, refs/mirrors, tmp);
+          # build-update-repo then dies with "opendir(refs/remotes): No such file".
+          # Recreate them unconditionally — harmless when they already exist.
+          mkdir -p public/refs/heads public/refs/mirrors public/refs/remotes public/tmp
 
       - name: Build into the store
         run: |
