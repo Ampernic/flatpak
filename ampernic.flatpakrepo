@@ -1,0 +1,9 @@
+[Flatpak Repo]
+Title=Ampernic
+Url=https://flatpak.ampernic.space/
+Homepage=https://github.com/Ampernic
+Comment=Ampernic's personal Flatpak repository
+Description=Personal Flatpak repository hosting Ampernic's applications. The stable branch is the default; append //devel to install development builds.
+Icon=https://flatpak.ampernic.space/icon.svg
+DefaultBranch=stable
+GPGKey=mDMEaiA9IhYJKwYBBAHaRw8BAQdA5gavh+p59qIMG+DT0cg+cTI+t6V5ZmBH0mlEJdlo5Wy0L0Fub3RoZXJUR1Byb3h5IEZsYXRwYWsgUmVwbyA8YW1wZXJuaWNAaW5ib3gucnU+iJMEExYKADsWIQSbZwbVn2Dase4432xjAMvIQbK5pgUCaiA9IgIbAwULCQgHAgIiAgYVCgkICwIEFgIDAQIeBwIXgAAKCRBjAMvIQbK5poHFAP9A0UNnnofM0na3MO8h/du0FQ0YzOUZ0OKIy2FieMyecwEA7/2mbCJZ1JpSVOAu/oBACCTYzaYOOmY9EYgPbWoFGgK4OARqID0iEgorBgEEAZdVAQUBAQdAN7bL8eNw6+EgnMEbnFkwteb2E0xB3BncoKLGZkX9K30DAQgHiHgEGBYKACAWIQSbZwbVn2Dase4432xjAMvIQbK5pgUCaiA9IgIbDAAKCRBjAMvIQbK5pm95AP0ZQxeQRAHyMr++2wIB8yYrb/kue67fSCbvD+cFBZqR1wD8DGmLSJjnVEftL5puE9afpOq3BT7OoIWtqR66g2b0HgU=
